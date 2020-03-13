@@ -128,7 +128,7 @@ int main(int argc, char*argv[]) {
         default:
             printf("message reçu %s\n",Buffer);
             id = atoi(Buffer);
-            interrogation_bd(12835081);
+            interrogation_bd(id);
         }
         close(socketDialogue);
     }
