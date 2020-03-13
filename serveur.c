@@ -77,12 +77,12 @@ void appelServeur1(int id,char* adresse) {
 }
 
 // port 3030
-void appelServeur2(int id)
+void appelServeur2(int id, char * BufferReception)
     {
    int countr,socketClientServeur2;
    struct sockaddr_in Serv2Addr = {0};      // @ du serveur
 
-   char  BufferEnvoi[MAX],BufferReception[MAX]; 
+   char  BufferEnvoi[MAX]; 
    unsigned short Serv2Port;
 
    socketClientServeur2 = socket(AF_INET,SOCK_STREAM,0);
@@ -98,24 +98,31 @@ void appelServeur2(int id)
    while(connect(socketClientServeur2,(struct sockaddr* )&Serv2Addr,sizeof(Serv2Addr))==-1) sleep(1);
 
    sprintf(BufferEnvoi,"%d",id);
-   countr = sendto(socketClientServeur2,BufferEnvoi,strlen(BufferEnvoi),0,(struct sockaddr *)&Serv2Addr,sizeof(Serv2Addr));
+   //countr = sendto(socketClientServeur2,BufferEnvoi,strlen(BufferEnvoi),0,(struct sockaddr *)&Serv2Addr,sizeof(Serv2Addr));
 
-   send(socketClientServeur2,BufferEnvoi,sizeof(char)*MAX,0);
+   write( socketClientServeur2, BufferEnvoi, sizeof(char)*MAX);
 
-
-   countr = read(socketClientServeur2,BufferReception,strlen(BufferReception));
-
-   write(socketDialogue,BufferReception,strlen(BufferReception));
-
+   countr = recv( socketClientServeur2, BufferReception, MAX*sizeof(char),0);
+   while(countr != 0){
+      printf("ahhhhi %d %s\n", countr , BufferReception);
+      countr = recv( socketClientServeur2, BufferReception, MAX*sizeof(char),0);
+   }
+   
    shutdown(socketClientServeur2,SHUT_RDWR);
    close(socketClientServeur2);
 
-} ;
-void appelServeur1et2(int id, char* adresse) {
 
+} ;
+
+
+void appelServeur1et2(int id, char* adresse) {
+   char * m;//warnnnnnning
    appelServeur1(id,adresse);
-   appelServeur2(id);
+   appelServeur2(id, m);//warnnninnnnnng
 }
+
+
+
 int  main(int argc, char * argv[]) 
 { 
    int  socketServeur;               // descripteur du socket d'écoute et descripteur du socket de dialogue
@@ -125,7 +132,7 @@ int  main(int argc, char * argv[])
    char  Buffer[MAX];                // Buffer de réception
    unsigned short ServPort;          // port du serveur
    int  countr;                      // count receive: longueur du message reçu
-   
+   char  table_response[MAX][MAX];
    int  codeOperation,idFacture;              
    
    if(argc < 2) {
@@ -160,55 +167,57 @@ int  main(int argc, char * argv[])
       perror("listen"); 
       exit(-1); 
    } 
-while(1)
-{   
-   printf("Serveur proxy en attente de demande de conenxion\n\n"); 
-   
-   socketDialogue = accept(socketServeur,(struct sockaddr *)&ClientAddr, &longueurAdresse); 
-   if (socketDialogue <0) 
-       { 
-          perror("accept"); 
-          close(socketDialogue); 
-          exit(-1); 
-       } 
-	
-    memset(Buffer, 0x00, MAX*sizeof(char)); 
-		
-    countr =  recv(socketDialogue, Buffer, MAX*sizeof(char),0);  
-    switch(countr) 
-    { 
-       case -1:  
-             perror("recv"); /***  une  erreur  ***/ 
-             close(socketDialogue); 
-             exit(-1); 
-       case 0: 
-             fprintf(stderr,"La socket a été fermée par le client!\n\n"); 
-             close(socketDialogue); 
-             return  0; 
-       default:  /***  réception de  n octets   ***/
-             printf("Message reçu: %s (%d octets)\n\n", Buffer, countr); 
-             //send(socketDialogue,"Bien reçu, le serveur proxy traitera votre demande.\n",100,0);
+   while(1)
+   {   
+      printf("Serveur proxy en attente de demande de connexion\n\n"); 
+      
+      socketDialogue = accept(socketServeur, (struct sockaddr *)&ClientAddr, &longueurAdresse); 
+      if (socketDialogue <0) 
+         { 
+            perror("accept"); 
+            close(socketDialogue); 
+            exit(-1); 
+         } 
+      
+      memset(Buffer, 0x00, MAX*sizeof(char)); 
+         
+      countr =  recv(socketDialogue, Buffer, MAX*sizeof(char),0);  
+      char BufferReception[MAX];
+      switch(countr) 
+      { 
+         case -1:  
+               perror("recv"); /***  une  erreur  ***/ 
+               close(socketDialogue); 
+               exit(-1); 
+         case 0: 
+               fprintf(stderr,"La socket a été fermée par le client!\n\n"); 
+               close(socketDialogue); 
+               return  0; 
+         default:  /***  réception de  n octets   ***/
+               printf("Message reçu: %s (%d octets)\n\n", Buffer, countr); 
+               //send(socketDialogue,"Bien reçu, le serveur proxy traitera votre demande.\n",100,0);
+               sscanf(Buffer, "%d:%d", &codeOperation, &idFacture);
 
-            sscanf(Buffer,"%d:%d",&codeOperation,&idFacture);
+               switch (codeOperation) {
+                  case 1:
+                     appelServeur1(idFacture,argv[1]);
+                     break;
+                  case 2:
+                     appelServeur2(idFacture, BufferReception);
+                     write(socketDialogue, BufferReception, strlen(BufferReception));
+                     break;
+                  case 3:
+                     appelServeur1et2(idFacture,argv[1]);
+                     break;
+                  default:
+                     printf("Etat érronée");
+                     exit(-1);
+               }
+         }     
 
-           switch (codeOperation) {
-            case 1:
-               appelServeur1(idFacture,argv[1]);
-               break;
-            case 2:
-               appelServeur2(idFacture);
-               break;
-            case 3:
-               appelServeur1et2(idFacture,argv[1]);
-            default:
-               printf("Etat érronée");
-               exit(-1);
-         }
-       }     
+         close(socketDialogue);  
+   }
+      close(socketServeur); 
 
-       close(socketDialogue);  
-}
-   close(socketServeur); 
-
-   return   0; 
+      return   0; 
 } 
