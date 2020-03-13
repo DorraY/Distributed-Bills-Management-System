@@ -15,9 +15,10 @@
 
 // serveur de port 3030
 
+int socketDialogue;
 
 const void interrogation_bd(int id) {
-    char* aEnvoyer;
+    char aEnvoyer[1024];
     aEnvoyer[0]='\0';
 
     MYSQL *con = mysql_init(NULL);
@@ -49,28 +50,25 @@ const void interrogation_bd(int id) {
             row = mysql_fetch_row(result);
 
             if (row==NULL) {
-                sprintf(aEnvoyer, "Il n'existe pas de client portant l'identifiant: %d",id);
-                puts(aEnvoyer);
-                exit(0);
-
+                printf("Il n'existe pas de client portant l'identifiant: %d",id);
             }
-            sprintf(aEnvoyer,"Les factures du client ayant pour id %d:",id);
-            strcat(aEnvoyer,"\n");
+            else {
+                printf("Les factures du client ayant pour id %d:\n",id);
+                
             
             while (row = mysql_fetch_row(result)) 
             {
             for (int i=0;i<num_fields;i++) {
-
-                strcat(aEnvoyer, row[i] ? strcat(row[i],":") : "NULL:"); // if row not null add row else add NULL
+                
+                printf("%s " ,row[i] ? row[i] : "NULL"); // if row not null print row else print NULL
 
             }
-                strcat(aEnvoyer,"\n");   
+                printf("\n");   
             }
-        puts(aEnvoyer);
+            }
+            
         mysql_free_result(result);
         mysql_close(con);
-
-        
 }
 
 int main(int argc, char*argv[]) {
@@ -106,6 +104,7 @@ int main(int argc, char*argv[]) {
       exit(-1); 
    } 
 
+    
     while (1) {
         printf("\nServeur Entr2 en attente de demande de connexion\n");
         socketDialogue = accept(socketServeur2,(struct sockaddr*)&ClientAddr,&longueurAdresse);
@@ -129,8 +128,7 @@ int main(int argc, char*argv[]) {
         default:
             printf("message reçu %s\n",Buffer);
             id = atoi(Buffer);
-            interrogation_bd(id);
-           
+            interrogation_bd(12835081);
         }
         close(socketDialogue);
     }
