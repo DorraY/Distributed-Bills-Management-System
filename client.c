@@ -37,7 +37,7 @@ int main(int argc , char* argv[]) {
 
             sprintf(aEnvoyer,"%d:%d",codeOperation,idClient);
             send(socketClient,aEnvoyer,sizeof(int)*MAX,0);
-            countr = recv(socketClient,aRecevoir,MAX*sizeof(char),0);
+            countr = read(socketClient,aRecevoir,strlen(aRecevoir));
             printf("%s",aRecevoir);
 
 

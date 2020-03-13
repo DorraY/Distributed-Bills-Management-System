@@ -13,15 +13,13 @@
 
 // compile with this command gcc -o Serveur2 $(mysql_config --cflags) Serveur2.c $(mysql_config --libs)
 
-
 // serveur de port 3030
 
-int socketDialogue;
 
-const char* interrogation_bd(int id) {
+const void interrogation_bd(int id) {
     char* aEnvoyer;
+    aEnvoyer[0]='\0';
 
-    sprintf(aEnvoyer, "Il n'existe pas de client portant l'identifiant: %d",id);
     MYSQL *con = mysql_init(NULL);
     char requete[100];
     if (con==NULL) {
@@ -45,32 +43,34 @@ const char* interrogation_bd(int id) {
                 exit(-1);
             }
             int num_fields = mysql_num_fields(result);
-            printf("%d",num_fields);
 
             MYSQL_ROW row;
 
             row = mysql_fetch_row(result);
 
             if (row==NULL) {
-                send(socketDialogue,aEnvoyer,100*MAX,0);
+                sprintf(aEnvoyer, "Il n'existe pas de client portant l'identifiant: %d",id);
+                puts(aEnvoyer);
+                exit(0);
 
             }
-
-            printf("Les factures du client ayant pour id %d:",id);
-            printf("\n");
+            sprintf(aEnvoyer,"Les factures du client ayant pour id %d:",id);
+            strcat(aEnvoyer,"\n");
+            
             while (row = mysql_fetch_row(result)) 
             {
             for (int i=0;i<num_fields;i++) {
 
-                printf("%s ", row[i] ? row[i] : "NULL"); // if row not null print row else print NULL
+                strcat(aEnvoyer, row[i] ? strcat(row[i],":") : "NULL:"); // if row not null add row else add NULL
 
             }
-                printf("\n");   
+                strcat(aEnvoyer,"\n");   
             }
-        
+        puts(aEnvoyer);
         mysql_free_result(result);
         mysql_close(con);
-        return aEnvoyer;
+
+        
 }
 
 int main(int argc, char*argv[]) {
@@ -106,7 +106,6 @@ int main(int argc, char*argv[]) {
       exit(-1); 
    } 
 
-    
     while (1) {
         printf("\nServeur Entr2 en attente de demande de connexion\n");
         socketDialogue = accept(socketServeur2,(struct sockaddr*)&ClientAddr,&longueurAdresse);
@@ -130,9 +129,8 @@ int main(int argc, char*argv[]) {
         default:
             printf("message reçu %s\n",Buffer);
             id = atoi(Buffer);
-            printf("%d\n",id);
-            interrogation_bd(12835081);
-            send(socketDialogue,interrogation_bd(id),sizeof(int)*MAX,0);
+            interrogation_bd(id);
+           
         }
         close(socketDialogue);
     }

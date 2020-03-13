@@ -101,9 +101,11 @@ void appelServeur2(int id)
    countr = sendto(socketClientServeur2,BufferEnvoi,strlen(BufferEnvoi),0,(struct sockaddr *)&Serv2Addr,sizeof(Serv2Addr));
 
    send(socketClientServeur2,BufferEnvoi,sizeof(char)*MAX,0);
-   countr = recv(socketClientServeur2,BufferReception,MAX*sizeof(char),0);
 
-   send(socketDialogue,BufferReception,MAX*100,0);
+
+   countr = read(socketClientServeur2,BufferReception,strlen(BufferReception));
+
+   write(socketDialogue,BufferReception,strlen(BufferReception));
 
    shutdown(socketClientServeur2,SHUT_RDWR);
    close(socketClientServeur2);
@@ -203,11 +205,6 @@ while(1)
                exit(-1);
          }
        }     
-
-
-       
-
-
 
        close(socketDialogue);  
 }
