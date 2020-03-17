@@ -28,7 +28,7 @@ int interrogation_bd(char* id, char table_response[MAX*MAX]) {
         fprintf(stderr, "%s\n" ,mysql_error(con));
         exit(-1);
     }
-    if (mysql_real_connect(con,"localhost","dorra","stormborn","SI_ENTR2",0,NULL,0)==NULL) {
+    if (mysql_real_connect(con,"localhost","dorra","mypassword","SI_ENTR2",0,NULL,0)==NULL) {
         fprintf(stderr,"%s\n",mysql_error(con));
         mysql_close(con);
         exit(1);
