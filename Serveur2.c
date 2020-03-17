@@ -16,64 +16,88 @@
 // serveur de port 3030
 
 int socketDialogue;
+//return rows number
+int interrogation_bd(char* id, char table_response[MAX*MAX]) {
 
-const void interrogation_bd(int id) {
-    char aEnvoyer[1024];
-    aEnvoyer[0]='\0';
 
     MYSQL *con = mysql_init(NULL);
     char requete[100];
+    int MontantGlobal =0;
+    char requeteMontant[100];
     if (con==NULL) {
-                fprintf(stderr, "%s\n" ,mysql_error(con));
-                exit(-1);
-            }
-            if (mysql_real_connect(con,"localhost","dorra","stormborn","SI_ENTR2",0,NULL,0)==NULL) {
-                fprintf(stderr,"%s\n",mysql_error(con));
-                mysql_close(con);
-                exit(1);
-            }
-            sprintf(requete,"SELECT * FROM Facture where id_client=%d",id);
-            if (mysql_query(con,requete)) {
-                fprintf(stderr, "%s\n" ,mysql_error(con));
-                exit(-1);
-            }
-            
-            MYSQL_RES *result = mysql_store_result(con);
-            if (result==NULL) {
-                fprintf(stderr, "%s\n" ,mysql_error(con));
-                exit(-1);
-            }
-            int num_fields = mysql_num_fields(result);
-
-            MYSQL_ROW row;
-
-            row = mysql_fetch_row(result);
-
-            if (row==NULL) {
-                printf("Il n'existe pas de client portant l'identifiant: %d",id);
-            }
-            else {
-                printf("Les factures du client ayant pour id %d:\n",id);
-                
-            
-            while (row = mysql_fetch_row(result)) 
-            {
-            for (int i=0;i<num_fields;i++) {
-                
-                printf("%s " ,row[i] ? row[i] : "NULL"); // if row not null print row else print NULL
-
-            }
-                printf("\n");   
-            }
-            }
-            
-        mysql_free_result(result);
+        fprintf(stderr, "%s\n" ,mysql_error(con));
+        exit(-1);
+    }
+    if (mysql_real_connect(con,"localhost","dorra","stormborn","SI_ENTR2",0,NULL,0)==NULL) {
+        fprintf(stderr,"%s\n",mysql_error(con));
         mysql_close(con);
+        exit(1);
+    }
+    sprintf(requete,"SELECT * FROM Facture where id_client=%s;",id);
+    if (mysql_query(con,requete)) {
+        fprintf(stderr, "%s\n" ,mysql_error(con));
+        exit(-1);
+    }
+
+    MYSQL_RES *result = mysql_store_result(con);
+    if (result==NULL) {
+        fprintf(stderr, "%s\n" ,mysql_error(con));
+        exit(-1);
+    }
+    int num_fields = mysql_num_fields(result);
+    MYSQL_ROW row;
+    row=mysql_fetch_row(result);
+    int itr = 0;
+    if (row==NULL) {
+        // printf("Il n'existe pas de client portant l'identifiant: %s",id);
+        sprintf(table_response, "Il n'existe pas de client portant l'identifiant: %s dans le système 2",id);
+        // send(socketDialogue, table_response[0], strlen(table_response[0]),0);
+        return -1;
+    }
+    else {
+        // printf("Les factures du client ayant pour id %s:\n",id);
+        char ligne[MAX];
+        ligne[0] = '\0';
+        table_response[0]='\0';
+        for (int i=0;i<num_fields;i++) {
+            strcat(ligne,row[i]);
+            strcat(ligne," ");
+        }
+        strcat(ligne,"\n");
+        while (row=mysql_fetch_row(result)) {
+            for (int i=0;i<num_fields;i++) {
+                strcat(ligne,row[i]);
+                strcat(ligne," ");
+            }
+            strcat(ligne,"\n");
+        }
+        strcpy(table_response,ligne);
+    }
+        
+    mysql_free_result(result);
+
+    sprintf(requeteMontant,"SELECT sum(Montant) from Facture where id_client=%s;",id);
+        if (mysql_query(con,requeteMontant)) {
+        fprintf(stderr, "%s\n" ,mysql_error(con));
+        exit(-1);
+    }
+    result = mysql_store_result(con);
+    if (result==NULL) {
+        fprintf(stderr, "%s\n" ,mysql_error(con));
+        exit(-1);
+    }
+    row=mysql_fetch_row(result);
+    sscanf(row[0],"%d",&MontantGlobal);
+
+
+    mysql_close(con);
+    return MontantGlobal;
 }
 
 int main(int argc, char*argv[]) {
     
     char Buffer[MAX];
+    char  table_response[MAX*MAX];
     socklen_t  longueurAdresse; 
     int socketServeur2,socketDialogue;
     struct sockaddr_in ServAddr;
@@ -107,6 +131,7 @@ int main(int argc, char*argv[]) {
     
     while (1) {
         printf("\nServeur Entr2 en attente de demande de connexion\n");
+        memset(table_response,0,sizeof(table_response));
         socketDialogue = accept(socketServeur2,(struct sockaddr*)&ClientAddr,&longueurAdresse);
         if (socketDialogue<0) {
             perror("accept");
@@ -114,7 +139,8 @@ int main(int argc, char*argv[]) {
             return(-1);
         }
         memset(Buffer,0x00,MAX*sizeof(char));
-        countr = recv(socketDialogue,Buffer,MAX*sizeof(char),0);
+        memset(table_response,0x00,MAX*MAX*sizeof(char));
+        countr = recv(socketDialogue,Buffer,MAX*MAX*sizeof(char),0);
         switch (countr)
         {
         case -1:
@@ -123,12 +149,27 @@ int main(int argc, char*argv[]) {
             return -1;
             break;
         case 0:
-            close(socketDialogue);
+            fprintf(stderr,"La socket a été fermée par le client!\n\n"); 
             return 0;
         default:
-            printf("message reçu %s\n",Buffer);
-            id = atoi(Buffer);
-            interrogation_bd(id);
+            printf("Message reçu %s\n",Buffer);
+            // memset(table_response,0,sizeof(table_response));
+            int MontantGlobal = interrogation_bd(Buffer, table_response);
+            
+            if (MontantGlobal==-1) {
+                strcpy(table_response,"Pas de client avec cet id \n");
+                send(socketDialogue,table_response,MAX*MAX*sizeof(char),0);
+            }
+            else {
+                puts(table_response);
+                char MontantGlobalString[100];
+                sprintf(MontantGlobalString,"Montant  total de S2 %d\n",MontantGlobal);
+                strcat(table_response,MontantGlobalString);
+                puts(table_response);
+                send(socketDialogue,table_response,strlen(table_response),0);
+
+            }
+            
         }
         close(socketDialogue);
     }
